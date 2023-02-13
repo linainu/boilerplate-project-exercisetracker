@@ -96,6 +96,21 @@ export async function getLog(userId, from, to, limit) {
   let dateFilter = '';
   let limitFilter = '';
 
+  const user = await db.get(
+    `
+    SELECT
+      username
+    FROM
+     User
+    WHERE id = ?
+    `,
+    userId
+  );
+
+  if (!user) {
+    throw Error('User does not exist');
+  }
+
   if (from) {
     dateFilter += `AND date >= "${from}"`;
   }
@@ -116,6 +131,7 @@ export async function getLog(userId, from, to, limit) {
       Exercise
     WHERE userId = ${userId}
     ${dateFilter}
+    ORDER BY date ASC
     ${limitFilter}
     `,
     (error, row) => {
@@ -138,5 +154,10 @@ export async function getLog(userId, from, to, limit) {
     userId
   );
 
-  return { count: count?.result || 0, logs };
+  return {
+    id: userId,
+    username: user.username,
+    logs,
+    count: count?.result || 0, 
+  };
 }
