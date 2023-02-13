@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bp from 'body-parser';
-import { __dirname } from './consts.js';
+import { __dirname, DATE_REGEXP } from './consts.js';
 import { buildError, formatDate } from './utils.js';
 import { insertUser, getUsers, insertExercise, getLog } from './db-queries.js';
 
@@ -48,9 +48,7 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
   const userId = Number(req.params._id);
   const duration = Number(req.body?.duration);
   const description = req.body?.description;
-  const date = req.body?.date
-    ? formatDate(Date.parse(req.body.date))
-    : formatDate(Date.now());
+  const date = req.body?.date ? req.body.date : formatDate(Date.now());
 
   const errors = [];
 
@@ -58,8 +56,8 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
     errors.push('User id should be a number');
   }
 
-  if (!date) {
-    errors.push('Provide a valid date');
+  if (!DATE_REGEXP.test(date)) {
+    errors.push('Provide a valid date YYYY-MM-DD');
   }
 
   if (!description) {
@@ -93,11 +91,27 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 
 app.get('/api/users/:_id/logs', async (req, res) => {
   const userId = Number(req.params._id);
-  const from = req.query?.from ? formatDate(Date.parse(req.query.from)) : '';
-  const to = req.query?.to ? formatDate(Date.parse(req.query.to)) : '';
+  const { from, to } = req.query;
   const limit = Number(req.query?.limit);
 
   const errors = [];
+
+  if (from && !DATE_REGEXP.test(from)) {
+    errors.push('Enter a valid from date YYYY-MM-DD');
+  }
+
+  if (to && !DATE_REGEXP.test(to)) {
+    errors.push('Enter a valid to date YYYY-MM-DD');
+  }
+
+  if (req.query?.limit && !limit) {
+    errors.push('Enter a valid limit value');
+  }
+
+  if (errors.length > 0) {
+    res.status(400).send(buildError(errors.join(', ')));
+    return;
+  }
 
   try {
     const result = await getLog(userId, from, to, limit);
